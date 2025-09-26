@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-load
+  namespace: app-demo-standalone
+  labels:
+    app: demo-load
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-load
+  template:
+    metadata:
+      labels:
+        app: demo-load
+    spec:
+      containers:
+        - name: load-generator
+          image: kind.local/demo-app-load:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TARGET_URL
+              value: http://demo-backend.app-demo-standalone.svc.cluster.local:8080/api/interaction
+            - name: BASE_RPS
+              value: "2"
+            - name: RAMP_FACTOR
+              value: "1.35"
+            - name: RAMP_INTERVAL_SECONDS
+              value: "45"
+            - name: RUN_DURATION_SECONDS
+              value: "300"
+            - name: ACTIONS
+              value: book_ticket,cancel_ticket,give_feedback
+            - name: METRICS_PORT
+              value: "2112"
+          ports:
+            - containerPort: 2112
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-load
+  namespace: app-demo-standalone
+  labels:
+    app: demo-load
+spec:
+  selector:
+    app: demo-load
+  ports:
+    - name: metrics
+      port: 2112
+      targetPort: 2112
