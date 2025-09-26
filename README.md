@@ -47,7 +47,7 @@ Look for `app_interactions_total`, `app_active_sessions`, and the HTTP histogram
 kubectl delete namespace app-demo-standalone
 ```
 
-# Stage 2 Demo: Add Load Generator (still no kube-burner)
+# Stage 2 Demo: Add Load Generator (no kube-burner)
 
 This builds on Stage 1. The frontend and backend remain running in the
 `app-demo-standalone` namespace. We’ll add the Python load generator to send
@@ -80,6 +80,16 @@ kubectl apply -f examples/demos/app-load-demo/load-generator.yaml
   curl http://localhost:2112/metrics | head
   ```
   Look for `lg_current_rps`, `lg_sent_requests_total`, `lg_errors_total`.
+
+### Ramp pattern
+- Starts at `BASE_RPS` requests per second.
+- Every `RAMP_INTERVAL_SECONDS`, multiplies the rate by `RAMP_FACTOR`.
+  * Example with defaults (`BASE_RPS=2`, `RAMP_FACTOR=1.35`, `RAMP_INTERVAL_SECONDS=45`):
+    - 0 seconds: ~2 rps (2 × 1.35^0)
+    - 45 seconds: ~2.7 rps (2 × 1.35^1)
+    - 90 seconds: ~3.6 rps (2 × 1.35^2)
+    - 135 seconds: ~4.9 rps (2 × 1.35^3)
+    - 180 seconds: ~6.6 rps (2 × 1.35^4)
 
 ## 4. Stop the traffic
 When finished, delete the load generator (leave the app running if you like).
