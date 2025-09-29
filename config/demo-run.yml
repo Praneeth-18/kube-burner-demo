@@ -1,0 +1,170 @@
+{{- $uuid := or .uuid .UUID -}}
+{{- $namespace := printf "%s-%s" .namespacePrefix $uuid -}}
+{{- $appName := .appName | default "kube-burner-demo" -}}
+{{- $enableLoad := .enableLoad | default true -}}
+{{- $baselinePause := .baselinePause | default "90s" -}}
+{{- $loadPause := .loadPause | default "180s" -}}
+{{- $backendImage := .backendImage -}}
+{{- $frontendImage := .frontendImage -}}
+{{- $loadImage := .loadGeneratorImage -}}
+{{- $backendName := .backendName | default "app-demo-backend" -}}
+{{- $backendService := .backendServiceName | default "app-demo-backend" -}}
+{{- $frontendName := .frontendName | default "app-demo-frontend" -}}
+{{- $frontendService := .frontendServiceName | default "app-demo-frontend" -}}
+{{- $frontendConfigName := printf "%s-config" $frontendName -}}
+{{- $loadName := .loadGeneratorName | default "app-demo-load" -}}
+{{- $loadService := .loadGeneratorServiceName | default "app-demo-load" -}}
+{{- $frontendConfigScript := printf "window.__BACKEND_URL__ = '%s';" (.frontendPublicUrl | default "http://localhost:8081") -}}
+
+global:
+  gc: false
+  uuid: {{ $uuid }}
+  measurements:
+    - name: podLatency
+  functionTemplates: []
+
+jobs:
+  - name: deploy-application
+    jobType: create
+    jobIterations: 1
+    preLoadPeriod: 5s
+    qps: 5
+    burst: 5
+    waitWhenFinished: true
+    cleanup: false
+    namespacedIterations: false
+    namespace: {{ $namespace }}
+    jobPause: {{ $baselinePause }}
+    objects:
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/backend-deployment.yml
+        kind: Deployment
+        apiVersion: apps/v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          backendName: {{ $backendName }}
+          backendImage: {{ $backendImage }}
+          backendReplicas: {{ .backendReplicas | default 2 }}
+          appName: {{ $appName }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/backend-service.yml
+        kind: Service
+        apiVersion: v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          backendName: {{ $backendName }}
+          backendServiceName: {{ $backendService }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-configmap.yml
+        kind: ConfigMap
+        apiVersion: v1
+        replicas: 1
+        runOnce: true
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          frontendConfigName: {{ $frontendConfigName }}
+          frontendName: {{ $frontendName }}
+          frontendConfigScript: {{ $frontendConfigScript }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-deployment.yml
+        kind: Deployment
+        apiVersion: apps/v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          frontendName: {{ $frontendName }}
+          frontendImage: {{ $frontendImage }}
+          frontendConfigName: {{ $frontendConfigName }}
+          frontendReplicas: {{ .frontendReplicas | default 1 }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-service.yml
+        kind: Service
+        apiVersion: v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          frontendName: {{ $frontendName }}
+          frontendServiceName: {{ $frontendService }}
+{{- if $enableLoad }}
+  - name: start-load-generator
+    jobType: create
+    jobIterations: 1
+    preLoadPeriod: 5s
+    qps: 2
+    burst: 2
+    waitWhenFinished: true
+    cleanup: false
+    namespacedIterations: false
+    namespace: {{ $namespace }}
+    jobPause: {{ $loadPause }}
+    objects:
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-deployment.yml
+        kind: Deployment
+        apiVersion: apps/v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          loadGeneratorName: {{ $loadName }}
+          loadGeneratorImage: {{ $loadImage }}
+          loadGeneratorReplicas: "{{ .loadGeneratorReplicas | default 1 }}"
+          loadGeneratorTargetUrl: {{ printf "http://%s.%s.svc.cluster.local:8080/api/interaction" $backendService $namespace }}
+          loadGeneratorActions: {{ .loadGeneratorActions | default "book_ticket,cancel_ticket,give_feedback" }}
+          loadGeneratorBaseRps: "{{ .loadGeneratorBaseRps | default "2" }}"
+          loadGeneratorRampFactor: "{{ .loadGeneratorRampFactor | default "1.35" }}"
+          loadGeneratorRampIntervalSeconds: "{{ .loadGeneratorRampIntervalSeconds | default "60" }}"
+          loadGeneratorRunDurationSeconds: "{{ .loadGeneratorRunDurationSeconds | default "300" }}"
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-service.yml
+        kind: Service
+        apiVersion: v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          loadGeneratorServiceName: {{ $loadService }}
+          loadGeneratorName: {{ $loadName }}
+          appName: {{ $appName }}
+  - name: stop-load-generator
+    jobType: delete
+    jobIterations: 1
+    namespacedIterations: false
+    namespace: {{ $namespace }}
+    waitWhenFinished: false
+    objects:
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-deployment.yml
+        kind: Deployment
+        apiVersion: apps/v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          loadGeneratorName: {{ $loadName }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-service.yml
+        kind: Service
+        apiVersion: v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          loadGeneratorServiceName: {{ $loadService }}
+{{- end }}
