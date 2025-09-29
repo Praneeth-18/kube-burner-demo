@@ -18,11 +18,11 @@ This guide walks through the demo end to end: building the sample application, d
 ## 2. Build the demo containers
 
 ```bash
-docker build -t kind.local/demo-app-backend:latest examples/demos/app-load-demo/images/backend
+docker build -t kind.local/demo-app-backend:latest images/backend
 
-docker build -t kind.local/demo-app-frontend:latest examples/demos/app-load-demo/images/frontend
+docker build -t kind.local/demo-app-frontend:latest images/frontend
 
-docker build -t kind.local/demo-app-load:latest examples/demos/app-load-demo/images/load-generator
+docker build -t kind.local/demo-app-load:latest images/load-generator
 ```
 
 Change the tags if you are using a different cluster/registry.
@@ -72,7 +72,7 @@ go install github.com/kube-burner/kube-burner/cmd/kube-burner@latest
 ---
 ## 5. Configure the run
 
-Edit `examples/demos/app-load-demo/tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Example:
+Edit `tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Example:
 
 ```yaml
 uuid: demo-run-001
@@ -96,8 +96,8 @@ Remember to change the `uuid` before each run; the namespace will be `${namespac
 
 ```bash
 ./bin/kube-burner init \
-  -c examples/demos/app-load-demo/config/demo-run.yml \
-  --user-data examples/demos/app-load-demo/tmp/demo-user-data.yaml \
+  -c config/demo-run.yml \
+  --user-data tmp/demo-user-data.yaml \
   --uuid demo-run-001
 ```
 
