@@ -1,98 +1,157 @@
-# Stage 1 Demo: Manual App Run (no kube-burner)
+# kube-burner Orchestration
 
-This walkthrough spins up the frontend + backend on a Kind cluster and lets you click the UI and inspect metrics without kube-burner.
+This guide walks through the demo end to end: building the sample application, deploying it with kube-burner, exercising it with an exponential load generator, and observing metrics via direct port-forwards. 
 
-## 1. Build images locally
-```bash
-export DEMO_REGISTRY=kind.local/demo-app
+---
+## 1. Prerequisites
 
-docker build -t ${DEMO_REGISTRY}-backend:latest  examples/demos/app-load-demo/images/backend
-docker build -t ${DEMO_REGISTRY}-frontend:latest examples/demos/app-load-demo/images/frontend
-```
-
-## 2. Load images into Kind
-```bash
-kind create cluster                    # only if the cluster isn’t already up
-kind load docker-image ${DEMO_REGISTRY}-backend:latest
-kind load docker-image ${DEMO_REGISTRY}-frontend:latest
-```
-
-## 3. Create namespace
-```bash
-kubectl create namespace app-demo-standalone
-```
-
-## 4. Apply manifests (files created under your scratch directory)
-```bash
-kubectl apply -f backend.yaml          # backend deployment + service
-kubectl apply -f frontend.yaml         # configmap + frontend deployment + service
-```
-
-## 5. Port-forward to access the app and backend
-```bash
-kubectl port-forward svc/demo-backend  -n app-demo-standalone 8081:8080
-kubectl port-forward svc/demo-frontend -n app-demo-standalone 8080:80
-```
-
-Open the UI: <http://localhost:8080> and click the buttons.
-
-## 6. Inspect metrics (optional)
-```bash
-curl http://localhost:8081/metrics | head
-```
-Look for `app_interactions_total`, `app_active_sessions`, and the HTTP histogram.
-
-## 7. Cleanup after the demo
-```bash
-kubectl delete namespace app-demo-standalone
-```
-
-# Stage 2 Demo: Add Load Generator (no kube-burner)
-
-This builds on Stage 1. The frontend and backend remain running in the
-`app-demo-standalone` namespace. We’ll add the Python load generator to send
-exponentially increasing traffic so you can watch the metrics spike.
-
-## Prerequisites
-- Stage 1 already deployed and port-forwards in place (UI at http://localhost:8080, backend metrics at http://localhost:8081/metrics)
-- Same `DEMO_REGISTRY=kind.local/demo-app` setting as before
-
-## 1. Build and load the load-generator image
-```bash
-export DEMO_REGISTRY=kind.local/demo-app
-
-docker build -t ${DEMO_REGISTRY}-load:latest examples/demos/app-load-demo/images/load-generator
-kind load docker-image ${DEMO_REGISTRY}-load:latest
-```
-
-## 2. Apply the load generator manifests
-`load-generator.yaml` deploys the client and a service exposing its metrics.
-Edit the image name if you use a different registry.
-```bash
-kubectl apply -f examples/demos/app-load-demo/load-generator.yaml
-```
-
-## 3. Watch metrics
-- Backend: the `/metrics` endpoint on port 8081 now shows rapidly growing `app_interactions_total`, higher latency buckets, and more active sessions.
-- Load generator: port-forward if you want to inspect its metrics.
+- Docker Desktop (or Docker Engine) with permission to share this repository directory.
+- `kubectl` and either **kind** (recommended) or another Kubernetes cluster.
+- `curl`, `tar`, and `bash` for pulling binaries.
+- Clone the repo:
   ```bash
-  kubectl port-forward svc/demo-load -n app-demo-standalone 2112:2112
-  curl http://localhost:2112/metrics | head
+  git clone https://github.com/Praneeth-18/kube-burner-demo.git
+  cd kube-burner-demo
   ```
-  Look for `lg_current_rps`, `lg_sent_requests_total`, `lg_errors_total`.
 
-### Ramp pattern
-- Starts at `BASE_RPS` requests per second.
-- Every `RAMP_INTERVAL_SECONDS`, multiplies the rate by `RAMP_FACTOR`.
-  * Example with defaults (`BASE_RPS=2`, `RAMP_FACTOR=1.35`, `RAMP_INTERVAL_SECONDS=45`):
-    - 0 seconds: ~2 rps (2 × 1.35^0)
-    - 45 seconds: ~2.7 rps (2 × 1.35^1)
-    - 90 seconds: ~3.6 rps (2 × 1.35^2)
-    - 135 seconds: ~4.9 rps (2 × 1.35^3)
-    - 180 seconds: ~6.6 rps (2 × 1.35^4)
+---
+## 2. Build the demo containers
 
-## 4. Stop the traffic
-When finished, delete the load generator (leave the app running if you like).
 ```bash
-kubectl delete -f examples/demos/app-load-demo/load-generator.yaml
+docker build -t kind.local/demo-app-backend:latest examples/demos/app-load-demo/images/backend
+
+docker build -t kind.local/demo-app-frontend:latest examples/demos/app-load-demo/images/frontend
+
+docker build -t kind.local/demo-app-load:latest examples/demos/app-load-demo/images/load-generator
 ```
+
+Change the tags if you are using a different cluster/registry.
+
+---
+## 3. Create and prepare the cluster
+
+For kind:
+
+```bash
+kind create cluster --name kube-burner-demo
+kind load docker-image kind.local/demo-app-backend:latest --name kube-burner-demo
+kind load docker-image kind.local/demo-app-frontend:latest --name kube-burner-demo
+kind load docker-image kind.local/demo-app-load:latest --name kube-burner-demo
+kubectl get nodes
+```
+
+Skip the `kind load` step if your cluster already has access to these images.
+
+---
+## 4. Install kube-burner
+
+Download the binary matching your platform. Example (macOS arm64):
+
+```bash
+mkdir -p bin
+curl -L https://github.com/kube-burner/kube-burner/releases/latest/download/kube-burner-darwin-arm64 -o bin/kube-burner
+chmod +x bin/kube-burner
+```
+
+Linux amd64:
+
+```bash
+curl -L https://github.com/kube-burner/kube-burner/releases/latest/download/kube-burner-linux-amd64 -o bin/kube-burner
+chmod +x bin/kube-burner
+```
+
+You can also build from source:
+
+```bash
+go install github.com/kube-burner/kube-burner/cmd/kube-burner@latest
+# copy or symlink $GOPATH/bin/kube-burner into ./bin/
+```
+
+`./bin/` is ignored by git so you can drop the binary there safely.
+
+---
+## 5. Configure the run
+
+Edit `examples/demos/app-load-demo/tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Example:
+
+```yaml
+uuid: demo-run-001
+namespacePrefix: app-demo
+appName: movie-night
+backendImage: kind.local/demo-app-backend:latest
+frontendImage: kind.local/demo-app-frontend:latest
+loadGeneratorImage: kind.local/demo-app-load:latest
+baselinePause: 60s
+loadPause: 180s
+loadGeneratorBaseRps: "4"
+loadGeneratorRampFactor: "2"
+loadGeneratorRampIntervalSeconds: "30"
+loadGeneratorRunDurationSeconds: "240"
+```
+
+Remember to change the `uuid` before each run; the namespace will be `${namespacePrefix}-${uuid}` (e.g. `app-demo-demo-run-001`).
+
+---
+## 6. Run the demo
+
+```bash
+./bin/kube-burner init \
+  -c examples/demos/app-load-demo/config/demo-run.yml \
+  --user-data examples/demos/app-load-demo/tmp/demo-user-data.yaml \
+  --uuid demo-run-001
+```
+
+kube-burner workflow:
+1. Pre-pull images via a temporary DaemonSet.
+2. Deploy backend and frontend.
+3. Pause for the baseline window (`baselinePause`).
+4. Deploy the load generator; it drives traffic until `loadPause` elapses (or `RUN_DURATION_SECONDS` is hit).
+5. Delete the load generator Deployment/Service (backend/front-end remain).
+
+---
+## 7. Observe via port-forward
+
+While the namespace exists:
+
+- **Frontend UI**
+  ```bash
+  kubectl port-forward svc/demo-frontend -n app-demo-demo-run-001 8080:80
+  ```
+  Visit <http://localhost:8080/> to watch counters update.
+
+- **Backend metrics**
+  ```bash
+  kubectl port-forward svc/demo-backend -n app-demo-demo-run-001 8081:8080
+  curl http://localhost:8081/metrics | grep app_interactions_total
+  ```
+
+- **Load generator metrics (during load window)**
+  ```bash
+  kubectl port-forward svc/demo-load -n app-demo-demo-run-001 2112:2112
+  curl http://localhost:2112/metrics | grep lg_
+  ```
+
+These endpoints expose everything you need: HTTP server metrics, interaction counts, and load-generator gauges/counters.
+
+---
+## 8. Cleanup
+
+```bash
+./bin/kube-burner destroy --uuid demo-run-001
+kubectl delete namespace app-demo-demo-run-001 --ignore-not-found
+```
+
+Optional:
+
+```bash
+kind delete cluster --name kube-burner-demo
+```
+
+Before the next run, update the `uuid` in `demo-user-data.yaml`.
+
+---
+## 9. Troubleshooting highlights
+
+- **Pods cannot pull images**: ensure you loaded the images into kind or pushed them to a reachable registry.
+- **Load ends too soon**: increase `loadPause` and/or `loadGeneratorRunDurationSeconds`.
+- **UUID conflict**: destroy the old run or pick a fresh UUID.

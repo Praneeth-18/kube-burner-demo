@@ -1,0 +1,9 @@
+# Local artifacts for Stage 3 demo
+/tmp/kubeconfig
+/tmp/kubeconfig.*
+/tmp/prometheus.yml
+/tmp/docker-compose.yml
+/tmp/*.log
+
+# macOS Finder artifacts
+.DS_Store
