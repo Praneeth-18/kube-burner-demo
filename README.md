@@ -45,29 +45,7 @@ Skip the `kind load` step if your cluster already has access to these images.
 ---
 ## 4. Install kube-burner
 
-Download the binary matching your platform. Example (macOS arm64):
-
-```bash
-mkdir -p bin
-curl -L https://github.com/kube-burner/kube-burner/releases/latest/download/kube-burner-darwin-arm64 -o bin/kube-burner
-chmod +x bin/kube-burner
-```
-
-Linux amd64:
-
-```bash
-curl -L https://github.com/kube-burner/kube-burner/releases/latest/download/kube-burner-linux-amd64 -o bin/kube-burner
-chmod +x bin/kube-burner
-```
-
-You can also build from source:
-
-```bash
-go install github.com/kube-burner/kube-burner/cmd/kube-burner@latest
-# copy or symlink $GOPATH/bin/kube-burner into ./bin/
-```
-
-`./bin/` is ignored by git so you can drop the binary there safely.
+A version of kube-burner is already present in bin folder which works with this repo. Not sure if it will work with the newer kube-burner versions, will test it out and update this repo. Download the binary matching your platform.
 
 ---
 ## 5. Configure the run
