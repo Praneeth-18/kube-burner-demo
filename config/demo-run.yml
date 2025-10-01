@@ -1,77 +1,30 @@
-{{- $meta := or (index . "UserMetadata") (index . "Metadata") -}}
-{{- $uuid := or (and $meta (index $meta "uuid"))
-               (and $meta (index $meta "UUID"))
-               (index . "uuid")
-               (index . "UUID") -}}
-{{- $namespacePrefix := default "app-demo"
-        (or (and $meta (index $meta "namespacePrefix"))
-            (index . "namespacePrefix")) -}}
+{{- $meta := or (index . "UserMetadata") . -}}
+{{- $uuid := or (index $meta "uuid") (index $meta "UUID") -}}
+{{- $namespacePrefix := or (index $meta "namespacePrefix") "app-demo" -}}
 {{- $namespace := printf "%s-%s" $namespacePrefix $uuid -}}
-{{- $appName := default "kube-burner-demo"
-        (or (and $meta (index $meta "appName"))
-            (index . "appName")) -}}
-{{- $enableLoad := default true
-        (or (and $meta (index $meta "enableLoad"))
-            (index . "enableLoad")) -}}
-{{- $baselinePause := default "90s"
-        (or (and $meta (index $meta "baselinePause"))
-            (index . "baselinePause")) -}}
-{{- $loadPause := default "180s"
-        (or (and $meta (index $meta "loadPause"))
-            (index . "loadPause")) -}}
-{{- $backendImage := or (and $meta (index $meta "backendImage"))
-                            (index . "backendImage") -}}
-{{- $frontendImage := or (and $meta (index $meta "frontendImage"))
-                             (index . "frontendImage") -}}
-{{- $loadImage := or (and $meta (index $meta "loadGeneratorImage"))
-                          (index . "loadGeneratorImage") -}}
-{{- $backendName := default "app-demo-backend"
-        (or (and $meta (index $meta "backendName"))
-            (index . "backendName")) -}}
-{{- $backendService := default "app-demo-backend"
-        (or (and $meta (index $meta "backendServiceName"))
-            (index . "backendServiceName")) -}}
-{{- $frontendName := default "app-demo-frontend"
-        (or (and $meta (index $meta "frontendName"))
-            (index . "frontendName")) -}}
-{{- $frontendService := default "app-demo-frontend"
-        (or (and $meta (index $meta "frontendServiceName"))
-            (index . "frontendServiceName")) -}}
+{{- $appName := or (index $meta "appName") "kube-burner-demo" -}}
+{{- $enableLoad := or (index $meta "enableLoad") true -}}
+{{- $baselinePause := or (index $meta "baselinePause") "90s" -}}
+{{- $loadPause := or (index $meta "loadPause") "180s" -}}
+{{- $backendImage := index $meta "backendImage" -}}
+{{- $frontendImage := index $meta "frontendImage" -}}
+{{- $loadImage := index $meta "loadGeneratorImage" -}}
+{{- $backendName := or (index $meta "backendName") "app-demo-backend" -}}
+{{- $backendService := or (index $meta "backendServiceName") "app-demo-backend" -}}
+{{- $frontendName := or (index $meta "frontendName") "app-demo-frontend" -}}
+{{- $frontendService := or (index $meta "frontendServiceName") "app-demo-frontend" -}}
 {{- $frontendConfigName := printf "%s-config" $frontendName -}}
-{{- $loadName := default "app-demo-load"
-        (or (and $meta (index $meta "loadGeneratorName"))
-            (index . "loadGeneratorName")) -}}
-{{- $loadService := default "app-demo-load"
-        (or (and $meta (index $meta "loadGeneratorServiceName"))
-            (index . "loadGeneratorServiceName")) -}}
-{{- $backendReplicas := default 2
-        (or (and $meta (index $meta "backendReplicas"))
-            (index . "backendReplicas")) -}}
-{{- $frontendReplicas := default 1
-        (or (and $meta (index $meta "frontendReplicas"))
-            (index . "frontendReplicas")) -}}
-{{- $loadGeneratorReplicas := default 1
-        (or (and $meta (index $meta "loadGeneratorReplicas"))
-            (index . "loadGeneratorReplicas")) -}}
-{{- $frontendPublicUrl := default "http://localhost:8081"
-        (or (and $meta (index $meta "frontendPublicUrl"))
-            (index . "frontendPublicUrl")) -}}
-{{- $frontendConfigScript := printf "window.__BACKEND_URL__ = '%s';" $frontendPublicUrl -}}
-{{- $loadGeneratorActions := default "book_ticket,cancel_ticket,give_feedback"
-        (or (and $meta (index $meta "loadGeneratorActions"))
-            (index . "loadGeneratorActions")) -}}
-{{- $loadGeneratorBaseRps := default "2"
-        (or (and $meta (index $meta "loadGeneratorBaseRps"))
-            (index . "loadGeneratorBaseRps")) -}}
-{{- $loadGeneratorRampFactor := default "1.35"
-        (or (and $meta (index $meta "loadGeneratorRampFactor"))
-            (index . "loadGeneratorRampFactor")) -}}
-{{- $loadGeneratorRampInterval := default "60"
-        (or (and $meta (index $meta "loadGeneratorRampIntervalSeconds"))
-            (index . "loadGeneratorRampIntervalSeconds")) -}}
-{{- $loadGeneratorRunDuration := default "300"
-        (or (and $meta (index $meta "loadGeneratorRunDurationSeconds"))
-            (index . "loadGeneratorRunDurationSeconds")) -}}
+{{- $loadName := or (index $meta "loadGeneratorName") "app-demo-load" -}}
+{{- $loadService := or (index $meta "loadGeneratorServiceName") "app-demo-load" -}}
+{{- $frontendConfigScript := printf "window.__BACKEND_URL__ = '%s';" (or (index $meta "frontendPublicUrl") "http://localhost:8081") -}}
+{{- $backendReplicas := or (index $meta "backendReplicas") 2 -}}
+{{- $frontendReplicas := or (index $meta "frontendReplicas") 1 -}}
+{{- $loadGeneratorReplicas := or (index $meta "loadGeneratorReplicas") 1 -}}
+{{- $loadGeneratorActions := or (index $meta "loadGeneratorActions") "book_ticket,cancel_ticket,give_feedback" -}}
+{{- $loadGeneratorBaseRps := or (index $meta "loadGeneratorBaseRps") "2" -}}
+{{- $loadGeneratorRampFactor := or (index $meta "loadGeneratorRampFactor") "1.35" -}}
+{{- $loadGeneratorRampInterval := or (index $meta "loadGeneratorRampIntervalSeconds") "60" -}}
+{{- $loadGeneratorRunDuration := or (index $meta "loadGeneratorRunDurationSeconds") "300" -}}
 
 global:
   gc: false
@@ -194,31 +147,4 @@ jobs:
           loadGeneratorServiceName: {{ $loadService }}
           loadGeneratorName: {{ $loadName }}
           appName: {{ $appName }}
-
-  - name: stop-load-generator
-    jobType: delete
-    jobIterations: 1
-    namespacedIterations: false
-    namespace: {{ $namespace }}
-    waitWhenFinished: false
-    objects:
-      - objectTemplate: workloads/objectTemplates/load-generator-deployment.yml
-        kind: Deployment
-        apiVersion: apps/v1
-        replicas: 1
-        labelSelector:
-          kube-burner-uuid: {{ $uuid }}
-        inputVars:
-          namespace: {{ $namespace }}
-          loadGeneratorName: {{ $loadName }}
-
-      - objectTemplate: workloads/objectTemplates/load-generator-service.yml
-        kind: Service
-        apiVersion: v1
-        replicas: 1
-        labelSelector:
-          kube-burner-uuid: {{ $uuid }}
-        inputVars:
-          namespace: {{ $namespace }}
-          loadGeneratorServiceName: {{ $loadService }}
 {{- end }}

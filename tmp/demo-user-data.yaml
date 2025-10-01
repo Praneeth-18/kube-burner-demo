@@ -16,8 +16,14 @@ loadGeneratorImage: kind.local/demo-app-load:latest
 frontendPublicUrl: http://localhost:8081
 loadGeneratorActions: book_ticket,cancel_ticket,give_feedback
 enableLoad: true
+
+# baselinePause is the duration where there is no load.
 baselinePause: 90s
+# loadPause is the duration when kube-burner waits while load is applied
+#   (when this time runs out, kube-burner exits).
 loadPause: 180s
+# The remaining 4 metrics are tweakable to design different load profiles,
+#   i.e. trigger load based on desired load numbers.
 loadGeneratorBaseRps: "4"
 loadGeneratorRampFactor: "2"
 loadGeneratorRampIntervalSeconds: "30"
