@@ -137,6 +137,14 @@ While the namespace exists:
 
 These endpoints expose everything you need: HTTP server metrics, interaction counts, and load-generator gauges/counters.
 
+### When you’re done showing the spike, scale the load generator back to zero so the app stays up but traffic stops:
+
+```bash
+kubectl scale deployment demo-load \
+  -n app-demo-demo-run-001 \
+  --replicas=0
+```
+
 ---
 ## 8. Cleanup
 
