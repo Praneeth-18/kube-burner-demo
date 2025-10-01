@@ -45,7 +45,7 @@ Skip the `kind load` step if your cluster already has access to these images.
 ---
 ## 4. Install kube-burner
 
-A version of kube-burner is already present in bin folder which works with this repo's config. Not sure if the current config will work with the newer kube-burner versions, will test it out and update this repo. Download the binary matching your platform.
+Download the binary matching your platform or simply run "make build" in the root of the cloned [kube-burner](https://github.com/kube-burner/kube-burner) and copy the "bin" folder to this repo's root.
 
 ---
 ## 5. Configure the run
