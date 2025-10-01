@@ -85,6 +85,16 @@ loadGeneratorRunDurationSeconds: "240"
 
 Remember to change the `uuid` before each run; the namespace will be `${namespacePrefix}-${uuid}` (e.g. `app-demo-demo-run-001`).
 
+### Ramp pattern (You can tweak these as per your desired load numers in `tmp/demo-user-data.yaml`
+- Starts at `BASE_RPS` requests per second.
+- Every `RAMP_INTERVAL_SECONDS`, multiplies the rate by `RAMP_FACTOR`.
+  * Example with defaults (`BASE_RPS=2`, `RAMP_FACTOR=1.35`, `RAMP_INTERVAL_SECONDS=45`):
+    - 0 seconds: ~2 rps (2 × 1.35^0)
+    - 45 seconds: ~2.7 rps (2 × 1.35^1)
+    - 90 seconds: ~3.6 rps (2 × 1.35^2)
+    - 135 seconds: ~4.9 rps (2 × 1.35^3)
+    - 180 seconds: ~6.6 rps (2 × 1.35^4)
+
 ---
 ## 6. Run the demo
 
