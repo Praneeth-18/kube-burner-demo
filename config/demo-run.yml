@@ -92,7 +92,7 @@ jobs:
     namespace: {{ $namespace }}
     jobPause: {{ $baselinePause }}
     objects:
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/backend-deployment.yml
+      - objectTemplate: workloads/objectTemplates/backend-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -105,7 +105,7 @@ jobs:
           backendReplicas: {{ $backendReplicas }}
           appName: {{ $appName }}
 
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/backend-service.yml
+      - objectTemplate: workloads/objectTemplates/backend-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
@@ -116,7 +116,7 @@ jobs:
           backendName: {{ $backendName }}
           backendServiceName: {{ $backendService }}
 
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-configmap.yml
+      - objectTemplate: workloads/objectTemplates/frontend-configmap.yml
         kind: ConfigMap
         apiVersion: v1
         replicas: 1
@@ -129,7 +129,7 @@ jobs:
           frontendName: {{ $frontendName }}
           frontendConfigScript: {{ $frontendConfigScript }}
 
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-deployment.yml
+      - objectTemplate: workloads/objectTemplates/frontend-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -142,7 +142,7 @@ jobs:
           frontendConfigName: {{ $frontendConfigName }}
           frontendReplicas: {{ $frontendReplicas }}
 
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-service.yml
+      - objectTemplate: workloads/objectTemplates/frontend-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
@@ -165,7 +165,7 @@ jobs:
     namespace: {{ $namespace }}
     jobPause: {{ $loadPause }}
     objects:
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-deployment.yml
+      - objectTemplate: workloads/objectTemplates/load-generator-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -183,7 +183,7 @@ jobs:
           loadGeneratorRampIntervalSeconds: "{{ $loadGeneratorRampInterval }}"
           loadGeneratorRunDurationSeconds: "{{ $loadGeneratorRunDuration }}"
 
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-service.yml
+      - objectTemplate: workloads/objectTemplates/load-generator-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
@@ -202,7 +202,7 @@ jobs:
     namespace: {{ $namespace }}
     waitWhenFinished: false
     objects:
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-deployment.yml
+      - objectTemplate: workloads/objectTemplates/load-generator-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -212,7 +212,7 @@ jobs:
           namespace: {{ $namespace }}
           loadGeneratorName: {{ $loadName }}
 
-      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-service.yml
+      - objectTemplate: workloads/objectTemplates/load-generator-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
