@@ -139,17 +139,19 @@ While the namespace exists:
   ```
   Visit <http://localhost:8080/> to watch counters update.
 
+- **Backend metrics**
+  ```bash
+  kubectl port-forward svc/demo-backend -n app-demo-demo-run-001 8081:8080
+  curl http://localhost:8081/metrics | grep app_interactions_total
+  ```
+
 - **Prometheus UI**
   ```bash
   kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-001 9090:9090
   ```
   Browse <http://localhost:9090> to explore the baked-in dashboards or run ad-hoc queries.
 
-- **Backend metrics**
-  ```bash
-  kubectl port-forward svc/demo-backend -n app-demo-demo-run-001 8081:8080
-  curl http://localhost:8081/metrics | grep app_interactions_total
-  ```
+### OPTIONAL:
 
 - **Load generator metrics (during load window)**
   ```bash
@@ -159,13 +161,13 @@ While the namespace exists:
 
 These endpoints expose everything you need: HTTP server metrics, interaction counts, load-generator gauges/counters, and the in-cluster Prometheus scrape results.
 
-### When you’re done showing the spike, scale the load generator back to zero so the app stays up but traffic stops:
+## When you’re done showing the spike, scale the load generator back to zero so the app stays up but traffic stops:
 
 ```bash
 kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
 ```
 
-You can scale it back up later if you want to restart the load without rerunning kube-burner.
+#### You can scale it back up later if you want to restart the load without rerunning kube-burner.
 ---
 ## 8. Cleanup
 
