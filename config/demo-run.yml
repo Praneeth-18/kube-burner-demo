@@ -25,6 +25,9 @@
 {{- $loadGeneratorRampFactor := or (index $meta "loadGeneratorRampFactor") "1.35" -}}
 {{- $loadGeneratorRampInterval := or (index $meta "loadGeneratorRampIntervalSeconds") "60" -}}
 {{- $loadGeneratorRunDuration := or (index $meta "loadGeneratorRunDurationSeconds") "300" -}}
+{{- $prometheusName := or (index $meta "prometheusName") "demo-prometheus" -}}
+{{- $prometheusServiceName := or (index $meta "prometheusServiceName") "demo-prometheus" -}}
+{{- $prometheusImage := or (index $meta "prometheusImage") "prom/prometheus:v2.54.0" -}}
 
 global:
   gc: false
@@ -45,7 +48,7 @@ jobs:
     namespace: {{ $namespace }}
     jobPause: {{ $baselinePause }}
     objects:
-      - objectTemplate: workloads/objectTemplates/backend-deployment.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/backend-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -58,7 +61,7 @@ jobs:
           backendReplicas: {{ $backendReplicas }}
           appName: {{ $appName }}
 
-      - objectTemplate: workloads/objectTemplates/backend-service.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/backend-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
@@ -69,7 +72,7 @@ jobs:
           backendName: {{ $backendName }}
           backendServiceName: {{ $backendService }}
 
-      - objectTemplate: workloads/objectTemplates/frontend-configmap.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-configmap.yml
         kind: ConfigMap
         apiVersion: v1
         replicas: 1
@@ -82,7 +85,7 @@ jobs:
           frontendName: {{ $frontendName }}
           frontendConfigScript: {{ $frontendConfigScript }}
 
-      - objectTemplate: workloads/objectTemplates/frontend-deployment.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -95,7 +98,7 @@ jobs:
           frontendConfigName: {{ $frontendConfigName }}
           frontendReplicas: {{ $frontendReplicas }}
 
-      - objectTemplate: workloads/objectTemplates/frontend-service.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/frontend-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
@@ -105,6 +108,47 @@ jobs:
           namespace: {{ $namespace }}
           frontendName: {{ $frontendName }}
           frontendServiceName: {{ $frontendService }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/prometheus-configmap.yml
+        kind: ConfigMap
+        apiVersion: v1
+        replicas: 1
+        runOnce: true
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          prometheusName: {{ $prometheusName }}
+          backendServiceName: {{ $backendService }}
+          backendName: {{ $backendName }}
+          loadGeneratorServiceName: {{ $loadService }}
+          loadGeneratorName: {{ $loadName }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/prometheus-deployment.yml
+        kind: Deployment
+        apiVersion: apps/v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          prometheusName: {{ $prometheusName }}
+          prometheusImage: {{ $prometheusImage }}
+          backendServiceName: {{ $backendService }}
+          backendName: {{ $backendName }}
+          loadGeneratorServiceName: {{ $loadService }}
+          loadGeneratorName: {{ $loadName }}
+
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/prometheus-service.yml
+        kind: Service
+        apiVersion: v1
+        replicas: 1
+        labelSelector:
+          kube-burner-uuid: {{ $uuid }}
+        inputVars:
+          namespace: {{ $namespace }}
+          prometheusServiceName: {{ $prometheusServiceName }}
+          prometheusName: {{ $prometheusName }}
 {{- if $enableLoad }}
   - name: start-load-generator
     jobType: create
@@ -118,7 +162,7 @@ jobs:
     namespace: {{ $namespace }}
     jobPause: {{ $loadPause }}
     objects:
-      - objectTemplate: workloads/objectTemplates/load-generator-deployment.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-deployment.yml
         kind: Deployment
         apiVersion: apps/v1
         replicas: 1
@@ -136,7 +180,7 @@ jobs:
           loadGeneratorRampIntervalSeconds: "{{ $loadGeneratorRampInterval }}"
           loadGeneratorRunDurationSeconds: "{{ $loadGeneratorRunDuration }}"
 
-      - objectTemplate: workloads/objectTemplates/load-generator-service.yml
+      - objectTemplate: examples/demos/app-load-demo/workloads/objectTemplates/load-generator-service.yml
         kind: Service
         apiVersion: v1
         replicas: 1
@@ -147,4 +191,5 @@ jobs:
           loadGeneratorServiceName: {{ $loadService }}
           loadGeneratorName: {{ $loadName }}
           appName: {{ $appName }}
+
 {{- end }}
