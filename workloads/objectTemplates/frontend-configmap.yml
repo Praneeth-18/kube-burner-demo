@@ -8,3 +8,4 @@ metadata:
 data:
   config.js: |
     {{ .frontendConfigScript | nindent 4 }}
+    window.__CONTROL_PANEL__ = true;
