@@ -54,7 +54,7 @@ Simply run "make build" in the root of the cloned [kube-burner](https://github.c
 ---
 ## 5. Configure the run
 
-Edit `tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Example:
+Edit `tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Every field can be tweaked so you can dial in lighter or heavier runs without touching the config. Example:
 
 ```yaml
 uuid: demo-run-001
@@ -81,6 +81,9 @@ loadGeneratorBaseRps: "4"
 loadGeneratorRampFactor: "2"
 loadGeneratorRampIntervalSeconds: "30"
 loadGeneratorRunDurationSeconds: "240"
+prometheusName: demo-prometheus
+prometheusServiceName: demo-prometheus
+prometheusImage: prom/prometheus:v2.54.0
 ```
 
 Remember to change the `uuid` before each run; the namespace will be `${namespacePrefix}-${uuid}` (e.g. `app-demo-demo-run-001`).
@@ -94,6 +97,19 @@ Remember to change the `uuid` before each run; the namespace will be `${namespac
     - 90 seconds: ~3.6 rps (2 × 1.35^2)
     - 135 seconds: ~4.9 rps (2 × 1.35^3)
     - 180 seconds: ~6.6 rps (2 × 1.35^4)
+
+### Key knobs worth adjusting:
+- **backendName/backendServiceName/backendReplicas**: override the backend Deployment & Service names and replica count without touching the templates.
+- **frontendName/frontendServiceName/frontendReplicas**: same for the frontend.
+- **loadGeneratorName/loadGeneratorServiceName/loadGeneratorReplicas**: control the load generator resources and how many workers run in parallel.
+- **frontendPublicUrl**: injected into the frontend config so the browser hits the right backend endpoint.
+- **loadGeneratorActions**: comma-separated list of actions the Python client will randomly execute.
+- **enableLoad**: set to `false` if you want to deploy only the app stack (useful for manual demos).
+- **baselinePause/loadPause**: how long kube-burner waits between jobs—baseline lets you click manually; load keeps the generator running before you stop it.
+- **loadGeneratorBaseRps/RampFactor/RampInterval/RunDuration**: tune the exponential request curve. These are the levers for targeting different load levels or demonstrating a breaking point.
+- **prometheusName/prometheusServiceName/prometheusImage**: tweak the in-cluster Prometheus deployment if you want a different name or image tag.
+
+> Tip: keep multiple copies of the file (for example `demo-user-data-light.yaml`, `demo-user-data-stress.yaml`) and copy the one you want to `tmp/demo-user-data.yaml` before each run.
 
 ---
 ## 6. Run the demo
@@ -109,8 +125,8 @@ kube-burner workflow:
 1. Pre-pull images via a temporary DaemonSet.
 2. Deploy backend and frontend.
 3. Pause for the baseline window (`baselinePause`).
-4. Deploy the load generator; it drives traffic until `loadPause` elapses (or `RUN_DURATION_SECONDS` is hit).
-5. Delete the load generator Deployment/Service (backend/front-end remain).
+4. Deploy the load generator; it drives traffic until `loadPause` elapses (or `RUN_DURATION_SECONDS` is hit). Afterwards the pods stay up so dashboards remain accessible until you scale them down.
+
 
 ---
 ## 7. Observe via port-forward
@@ -122,6 +138,12 @@ While the namespace exists:
   kubectl port-forward svc/demo-frontend -n app-demo-demo-run-001 8080:80
   ```
   Visit <http://localhost:8080/> to watch counters update.
+
+- **Prometheus UI**
+  ```bash
+  kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-001 9090:9090
+  ```
+  Browse <http://localhost:9090> to explore the baked-in dashboards or run ad-hoc queries.
 
 - **Backend metrics**
   ```bash
@@ -135,16 +157,15 @@ While the namespace exists:
   curl http://localhost:2112/metrics | grep lg_
   ```
 
-These endpoints expose everything you need: HTTP server metrics, interaction counts, and load-generator gauges/counters.
+These endpoints expose everything you need: HTTP server metrics, interaction counts, load-generator gauges/counters, and the in-cluster Prometheus scrape results.
 
 ### When you’re done showing the spike, scale the load generator back to zero so the app stays up but traffic stops:
 
 ```bash
-kubectl scale deployment demo-load \
-  -n app-demo-demo-run-001 \
-  --replicas=0
+kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
 ```
 
+You can scale it back up later if you want to restart the load without rerunning kube-burner.
 ---
 ## 8. Cleanup
 
