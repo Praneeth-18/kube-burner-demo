@@ -28,3 +28,7 @@ loadGeneratorBaseRps: "4"
 loadGeneratorRampFactor: "2"
 loadGeneratorRampIntervalSeconds: "30"
 loadGeneratorRunDurationSeconds: "240"
+
+prometheusName: demo-prometheus
+prometheusServiceName: demo-prometheus
+prometheusImage: prom/prometheus:v2.54.0
