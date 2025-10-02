@@ -149,7 +149,7 @@ While the namespace exists:
   ```bash
   kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-001 9090:9090
   ```
-  Browse <http://localhost:9090> to explore the baked-in dashboards or run ad-hoc queries.
+  Browse <http://localhost:9090> to explore the baked-in dashboards or run ad-hoc queries to interpret the metrics (e.g., **app_interactions_total, app_active_sessions, http_request_duration_seconds_bucket, lg_sent_requests_total**).
 
 ### OPTIONAL:
 
