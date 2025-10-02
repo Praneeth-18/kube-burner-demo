@@ -151,7 +151,7 @@ While the namespace exists:
   ```
   Browse <http://localhost:9090> to explore the baked-in dashboards or run ad-hoc queries to interpret the metrics (e.g., **app_interactions_total, app_active_sessions, http_request_duration_seconds_bucket, lg_sent_requests_total**).
 
-### OPTIONAL:
+##### OPTIONAL:
 
 - **Load generator metrics (during load window)**
   ```bash
