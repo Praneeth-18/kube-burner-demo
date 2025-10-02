@@ -197,11 +197,52 @@ You can scale it back up later if you want to restart the load without rerunning
 
    Watch Prometheus as latency drops back to normal.
 
-### Why kube-burner?
+### Why kube-burner at all?
 
-- Launches the whole stack (app + load + Prometheus) with one command and repeatable settings.
-- Lets you version control the load profiles (user-data YAML) so you can demo “baseline vs. stress” on demand.
-- Collects latency metrics automatically (`podLatency` measurement + Prometheus scrapes) so you don’t have to wire them up each time.
+It gives you a repeatable script for:
+
+- Creating the whole stack (frontend + backend + Prometheus + configurable load) with one command.
+- Versioning the load profile (tmp/demo-user-data.yaml).
+- Re-running the same sequence with different load parameters just by editing the YAML.
+- Automatically collecting pod latency and service metrics.
+
+Without kube-burner you’d have to kubectl apply a bunch of manifests, sync the timers manually, and clean up by hand.
+
+### Demo flow in one run
+
+1. Run kube-burner with the default profile (one backend replica, moderate RPS) to collect a baseline.
+2. While the load job is running (or immediately after kube-burner exits), change the load on the fly:
+   ```bash
+   kubectl edit deployment demo-load -n app-demo-demo-run-001
+   ```
+   Adjust the environment variables (RPS, ramp factor, etc.) or scale replicas as needed.
+   Prometheus keeps the timeline, so you will see the spike on the same dashboard.
+3. Recover by scaling the backend: 
+   ```bash
+   kubectl scale deployment demo-backend 
+     -n app-demo-demo-run-001 
+     --replicas=3
+   ```
+4. When finished, stop the load generator but leave the app running: 
+   ```bash
+   kubectl scale deployment demo-load 
+     -n app-demo-demo-run-001 
+     --replicas=0
+   ```
+
+You only need to rerun kube-burner with a new UUID when you want a completely separate namespace (for example, `demo-run-002`) so you can compare runs side-by-side.
+
+### Running multiple Prometheus UIs
+
+- **Different local ports**
+  ```bash
+  kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-001 9090:9090
+  kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-002 9091:9090
+  ```
+  Visit `http://localhost:9090` for the baseline and `http://localhost:9091` for the stress run.
+
+- **One at a time**
+  Stop the first port-forward (`Ctrl+C`) and start a new one that points at the next namespace. Use the same local port if you only need one dashboard at a time.
 
 ---
 ## 8. Cleanup
