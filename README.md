@@ -62,7 +62,7 @@ namespacePrefix: app-demo
 appName: movie-night
 backendName: demo-backend
 backendServiceName: demo-backend
-backendReplicas: 2
+backendReplicas: 1
 frontendName: demo-frontend
 frontendServiceName: demo-frontend
 frontendReplicas: 1
@@ -161,13 +161,48 @@ While the namespace exists:
 
 These endpoints expose everything you need: HTTP server metrics, interaction counts, load-generator gauges/counters, and the in-cluster Prometheus scrape results.
 
-## When you’re done showing the spike, scale the load generator back to zero so the app stays up but traffic stops:
+**Prometheus queries worth trying**
+- `rate(app_interactions_total[1m])`
+- `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[2m])) by (le))`
+- `histogram_quantile(0.99, sum(rate(lg_request_duration_seconds_bucket[2m])) by (le))`
+- `sum(rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))`
+- `lg_current_rps`
+
+These show throughput, backend latency percentiles, and load-generator behavior.
+
+When you're done showing the spike, scale the generator back to zero instead of deleting everything:
 
 ```bash
 kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
 ```
 
-#### You can scale it back up later if you want to restart the load without rerunning kube-burner.
+You can scale it back up later if you want to restart the load without rerunning kube-burner.
+
+### Find the breaking point
+
+1. Start with the default profile (1 backend replica, moderate RPS) and capture the baseline in Prometheus.
+2. Bump the load knobs in `tmp/demo-user-data.yaml`—for example:
+   - `loadGeneratorBaseRps: "8"`
+   - `loadGeneratorRampFactor: "2.5"`
+   - `loadGeneratorReplicas: 2`
+   - shorter `loadGeneratorRampIntervalSeconds`
+3. Rerun kube-burner with a new UUID and watch for latency spikes or `http_5xx` errors.
+4. Recover by scaling the backend:
+
+   ```bash
+   kubectl scale deployment demo-backend \
+     -n app-demo-demo-run-XXX \
+     --replicas=3
+   ```
+
+   Watch Prometheus as latency drops back to normal.
+
+### Why kube-burner?
+
+- Launches the whole stack (app + load + Prometheus) with one command and repeatable settings.
+- Lets you version control the load profiles (user-data YAML) so you can demo “baseline vs. stress” on demand.
+- Collects latency metrics automatically (`podLatency` measurement + Prometheus scrapes) so you don’t have to wire them up each time.
+
 ---
 ## 8. Cleanup
 

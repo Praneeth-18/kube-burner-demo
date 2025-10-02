@@ -3,7 +3,7 @@ namespacePrefix: app-demo
 appName: movie-night
 backendName: demo-backend
 backendServiceName: demo-backend
-backendReplicas: 2
+backendReplicas: 1
 frontendName: demo-frontend
 frontendServiceName: demo-frontend
 frontendReplicas: 1

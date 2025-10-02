@@ -17,7 +17,7 @@
 {{- $loadName := or (index $meta "loadGeneratorName") "app-demo-load" -}}
 {{- $loadService := or (index $meta "loadGeneratorServiceName") "app-demo-load" -}}
 {{- $frontendConfigScript := printf "window.__BACKEND_URL__ = '%s';" (or (index $meta "frontendPublicUrl") "http://localhost:8081") -}}
-{{- $backendReplicas := or (index $meta "backendReplicas") 2 -}}
+{{- $backendReplicas := or (index $meta "backendReplicas") 1 -}}
 {{- $frontendReplicas := or (index $meta "frontendReplicas") 1 -}}
 {{- $loadGeneratorReplicas := or (index $meta "loadGeneratorReplicas") 1 -}}
 {{- $loadGeneratorActions := or (index $meta "loadGeneratorActions") "book_ticket,cancel_ticket,give_feedback" -}}
