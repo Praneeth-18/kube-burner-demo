@@ -36,7 +36,7 @@ register.registerMetric(activeSessionsGauge);
 
 const interactions = new Map();
 const sessions = new Map();
-const SESSION_TTL_MS = 5 * 60 * 1000;
+const SESSION_TTL_MS = Infinity; // keep sessions for the full demo lifetime
 
 function pruneSessions(now) {
   for (const [sessionId, lastSeen] of sessions.entries()) {

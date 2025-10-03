@@ -163,6 +163,7 @@ These endpoints expose everything you need: HTTP server metrics, interaction cou
 
 **Prometheus queries worth trying**
 - `rate(app_interactions_total[1m])`
+- `rate(lg_errors_total[1m])`
 - `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[2m])) by (le))`
 - `histogram_quantile(0.99, sum(rate(lg_request_duration_seconds_bucket[2m])) by (le))`
 - `sum(rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))`
