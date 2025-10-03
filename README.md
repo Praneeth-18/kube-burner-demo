@@ -86,6 +86,42 @@ prometheusServiceName: demo-prometheus
 prometheusImage: prom/prometheus:v2.54.0
 ```
 
+---
+
+### Stress Load Profile
+
+Use these settings in `tmp/demo-user-data.yaml` to push the backend past its limits:
+
+```yaml
+uuid: demo-run-001
+namespacePrefix: app-demo
+appName: movie-night
+backendName: demo-backend
+backendServiceName: demo-backend
+backendReplicas: 1                # start with one backend pod
+frontendName: demo-frontend
+frontendServiceName: demo-frontend
+frontendReplicas: 1
+loadGeneratorName: demo-load
+loadGeneratorServiceName: demo-load
+loadGeneratorReplicas: 2          # two load-generator workers
+backendImage: kind.local/demo-app-backend:latest
+frontendImage: kind.local/demo-app-frontend:latest
+loadGeneratorImage: kind.local/demo-app-load:latest
+frontendPublicUrl: http://localhost:8081
+loadGeneratorActions: book_ticket,cancel_ticket,give_feedback
+enableLoad: true
+baselinePause: 90s
+loadPause: 180s
+loadGeneratorBaseRps: "10"
+loadGeneratorRampFactor: "3"
+loadGeneratorRampIntervalSeconds: "15"
+loadGeneratorRunDurationSeconds: "300"
+prometheusName: demo-prometheus
+prometheusServiceName: demo-prometheus
+prometheusImage: prom/prometheus:v2.54.0
+```
+
 Remember to change the `uuid` before each run; the namespace will be `${namespacePrefix}-${uuid}` (e.g. `app-demo-demo-run-001`).
 
 ### Ramp pattern (You can tweak these as per your desired load numers in `tmp/demo-user-data.yaml`
@@ -256,6 +292,7 @@ You only need to rerun kube-burner with a new UUID when you want a completely se
 
 - **One at a time**
   Stop the first port-forward (`Ctrl+C`) and start a new one that points at the next namespace. Use the same local port if you only need one dashboard at a time.
+
 
 ---
 ## 8. Cleanup
