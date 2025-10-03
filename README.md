@@ -178,6 +178,8 @@ kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
 
 You can scale it back up later if you want to restart the load without rerunning kube-burner.
 
+---
+
 ### Find the breaking point
 
 1. Start with the default profile (1 backend replica, moderate RPS) and capture the baseline in Prometheus.
@@ -208,7 +210,9 @@ It gives you a repeatable script for:
 
 Without kube-burner you’d have to kubectl apply a bunch of manifests, sync the timers manually, and clean up by hand.
 
-### Demo flow in one run
+---
+
+### Demo flow in one run for tweaking the load live:
 
 1. Run kube-burner with the default profile (one backend replica, moderate RPS) to collect a baseline.
 2. While the load job is running (or immediately after kube-burner exits), change the load on the fly:
@@ -217,17 +221,25 @@ Without kube-burner you’d have to kubectl apply a bunch of manifests, sync the
    ```
    Adjust the environment variables (RPS, ramp factor, etc.) or scale replicas as needed.
    Prometheus keeps the timeline, so you will see the spike on the same dashboard.
-3. Recover by scaling the backend: 
+
+   After you execute the previous command, in the editor, you can modify and play with these values for different load profiles:
    ```bash
-   kubectl scale deployment demo-backend 
-     -n app-demo-demo-run-001 
-     --replicas=3
+   - name: BASE_RPS
+     value: "4"
+   - name: RAMP_FACTOR
+     value: "2"
+   - name: RAMP_INTERVAL_SECONDS
+     value: "30"
+   - name: RUN_DURATION_SECONDS
+     value: "240"
    ```
-4. When finished, stop the load generator but leave the app running: 
+4. Recover by scaling the backend: 
    ```bash
-   kubectl scale deployment demo-load 
-     -n app-demo-demo-run-001 
-     --replicas=0
+   kubectl scale deployment demo-backend -n app-demo-demo-run-001 --replicas=3
+   ```
+5. When finished, stop the load generator but leave the app running: 
+   ```bash
+   kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
    ```
 
 You only need to rerun kube-burner with a new UUID when you want a completely separate namespace (for example, `demo-run-002`) so you can compare runs side-by-side.
