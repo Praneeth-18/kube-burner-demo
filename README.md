@@ -116,7 +116,7 @@ loadPause: 180s
 loadGeneratorBaseRps: "10"
 loadGeneratorRampFactor: "3"
 loadGeneratorRampIntervalSeconds: "15"
-loadGeneratorRunDurationSeconds: "300"
+loadGeneratorRunDurationSeconds: "3000"
 prometheusName: demo-prometheus
 prometheusServiceName: demo-prometheus
 prometheusImage: prom/prometheus:v2.54.0
