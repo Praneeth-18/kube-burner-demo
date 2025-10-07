@@ -86,6 +86,16 @@ prometheusServiceName: demo-prometheus
 prometheusImage: prom/prometheus:v2.54.0
 ```
 
+**Prefer `.env` for load tweaks**
+- Copy `.env.example` to `.env`, edit the variables you care about (baseline/load pauses, replicas, ramp knobs), then sync them into the YAML before running:
+  ```bash
+  cp .env.example .env
+  # edit .env with your preferred editor
+  ./scripts/sync-load-env.py
+  ```
+- Re-run the sync command whenever you change `.env`; values left unset fall back to whatever is already in the YAML.
+- This keeps newcomers out of raw YAML while still letting you version different load profiles alongside the repo.
+
 ---
 
 ### Stress Load Profile
@@ -205,6 +215,11 @@ These endpoints expose everything you need: HTTP server metrics, interaction cou
 - `sum(rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))`
 - `lg_current_rps`
 
+Latency-focused queries (replace `<uuid>` with your run, for example `demo-run-001`):
+- `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace="app-demo-<uuid>"}[5m])) by (le))` – backend request latency (p95).
+- `histogram_quantile(0.95, sum(rate(lg_request_duration_seconds_bucket{namespace="app-demo-<uuid>"}[5m])) by (le))` – load generator request latency (p95).
+- `sum(increase(kubelet_pod_worker_duration_seconds_count{namespace="app-demo-<uuid>"}[10m]))` – kubelet pod-startup counts/latency.
+
 These show throughput, backend latency percentiles, and load-generator behavior.
 
 When you're done showing the spike, scale the generator back to zero instead of deleting everything:
@@ -276,10 +291,14 @@ Without kube-burner you’d have to kubectl apply a bunch of manifests, sync the
    ```
 5. When finished, stop the load generator but leave the app running: 
    ```bash
-   kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
-   ```
+  kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
+```
 
 You only need to rerun kube-burner with a new UUID when you want a completely separate namespace (for example, `demo-run-002`) so you can compare runs side-by-side.
+
+**Latency measurements**
+- The scenario now captures `podLatency`, `podLatencyQuantiles`, and `podLatencyRange` using kube-burner’s built-in defaults (quantiles at 0.5/0.95/0.99 and standard bucket ranges).
+- Inspect the generated `measurements.json` in kube-burner’s output directory after a run, or forward Prometheus to correlate these stats with live metrics.
 
 ### Running multiple Prometheus UIs
 
