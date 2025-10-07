@@ -98,7 +98,7 @@ prometheusImage: prom/prometheus:v2.54.0
 
 ---
 
-### Stress Load Profile
+### Stress Load Profile for DEMO
 
 Use these settings in `tmp/demo-user-data.yaml` to push the backend past its limits:
 
@@ -114,19 +114,19 @@ frontendServiceName: demo-frontend
 frontendReplicas: 1
 loadGeneratorName: demo-load
 loadGeneratorServiceName: demo-load
-loadGeneratorReplicas: 2          # two load-generator workers
+loadGeneratorReplicas: 1          
 backendImage: kind.local/demo-app-backend:latest
 frontendImage: kind.local/demo-app-frontend:latest
 loadGeneratorImage: kind.local/demo-app-load:latest
 frontendPublicUrl: http://localhost:8081
 loadGeneratorActions: book_ticket,cancel_ticket,give_feedback
 enableLoad: true
-baselinePause: 90s
-loadPause: 180s
+baselinePause: 20s
+loadPause: 120s
 loadGeneratorBaseRps: "10"
-loadGeneratorRampFactor: "3"
-loadGeneratorRampIntervalSeconds: "15"
-loadGeneratorRunDurationSeconds: "3000"
+loadGeneratorRampFactor: "5"
+loadGeneratorRampIntervalSeconds: "5"
+loadGeneratorRunDurationSeconds: "150"
 prometheusName: demo-prometheus
 prometheusServiceName: demo-prometheus
 prometheusImage: prom/prometheus:v2.54.0
