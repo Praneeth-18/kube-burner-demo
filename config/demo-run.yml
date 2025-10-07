@@ -28,14 +28,13 @@
 {{- $prometheusName := or (index $meta "prometheusName") "demo-prometheus" -}}
 {{- $prometheusServiceName := or (index $meta "prometheusServiceName") "demo-prometheus" -}}
 {{- $prometheusImage := or (index $meta "prometheusImage") "prom/prometheus:v2.54.0" -}}
+{{- $backendScaleReplicas := or (index $meta "backendScaleReplicas") 2 -}}
 
 global:
   gc: false
   uuid: {{ $uuid }}
   measurements:
     - name: podLatency
-    - name: podLatencyQuantiles
-    - name: podLatencyRange
 
 jobs:
   - name: deploy-application
@@ -194,4 +193,24 @@ jobs:
           loadGeneratorName: {{ $loadName }}
           appName: {{ $appName }}
 
+  - name: scale-backend
+    jobType: patch
+    jobIterations: 1
+    preLoadPeriod: 0s
+    qps: 1
+    burst: 1
+    waitWhenFinished: true
+    cleanup: false
+    namespacedIterations: false
+    namespace: {{ $namespace }}
+    jobPause: 0s
+    objects:
+      - objectTemplate: workloads/objectTemplates/backend-scale-patch.yml
+        apiVersion: apps/v1
+        kind: Deployment
+        patchType: application/merge-patch+json
+        labelSelector:
+          app: {{ $backendName }}
+        inputVars:
+          backendScaleReplicas: {{ $backendScaleReplicas }}
 {{- end }}

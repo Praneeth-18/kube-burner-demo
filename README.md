@@ -94,6 +94,7 @@ prometheusImage: prom/prometheus:v2.54.0
   ./scripts/sync-load-env.py
   ```
 - Re-run the sync command whenever you change `.env`; values left unset fall back to whatever is already in the YAML.
+- Use `BACKEND_SCALE_REPLICAS` in `.env` if you want the automatic scale-up patch to target a different replica count.
 - This keeps newcomers out of raw YAML while still letting you version different load profiles alongside the repo.
 
 ---
@@ -122,11 +123,11 @@ frontendPublicUrl: http://localhost:8081
 loadGeneratorActions: book_ticket,cancel_ticket,give_feedback
 enableLoad: true
 baselinePause: 20s
-loadPause: 120s
+loadPause: 30s
 loadGeneratorBaseRps: "10"
 loadGeneratorRampFactor: "5"
 loadGeneratorRampIntervalSeconds: "5"
-loadGeneratorRunDurationSeconds: "150"
+loadGeneratorRunDurationSeconds: "90"
 prometheusName: demo-prometheus
 prometheusServiceName: demo-prometheus
 prometheusImage: prom/prometheus:v2.54.0
@@ -146,6 +147,7 @@ Remember to change the `uuid` before each run; the namespace will be `${namespac
 
 ### Key knobs worth adjusting:
 - **backendName/backendServiceName/backendReplicas**: override the backend Deployment & Service names and replica count without touching the templates.
+- **backendScaleReplicas**: target replica count applied by the kube-burner patch job once the load pause window elapses.
 - **frontendName/frontendServiceName/frontendReplicas**: same for the frontend.
 - **loadGeneratorName/loadGeneratorServiceName/loadGeneratorReplicas**: control the load generator resources and how many workers run in parallel.
 - **frontendPublicUrl**: injected into the frontend config so the browser hits the right backend endpoint.
@@ -172,7 +174,7 @@ kube-burner workflow:
 2. Deploy backend and frontend.
 3. Pause for the baseline window (`baselinePause`).
 4. Deploy the load generator; it drives traffic until `loadPause` elapses (or `RUN_DURATION_SECONDS` is hit). Afterwards the pods stay up so dashboards remain accessible until you scale them down.
-
+5. After the `loadPause` window, kube-burner runs a patch job that scales the backend deployment to `backendScaleReplicas` (default 2) so you can demonstrate recovery under load—tune `loadPause` in `.env` if you want that scale-up to happen sooner or later.
 
 ---
 ## 7. Observe via port-forward
@@ -241,7 +243,7 @@ You can scale it back up later if you want to restart the load without rerunning
    - `loadGeneratorReplicas: 2`
    - shorter `loadGeneratorRampIntervalSeconds`
 3. Rerun kube-burner with a new UUID and watch for latency spikes or `http_5xx` errors.
-4. Recover by scaling the backend:
+4. Recover by scaling the backend (the patch job will automatically raise it to `backendScaleReplicas`, but you can still experiment manually):
 
    ```bash
    kubectl scale deployment demo-backend \
@@ -297,7 +299,7 @@ Without kube-burner you’d have to kubectl apply a bunch of manifests, sync the
 You only need to rerun kube-burner with a new UUID when you want a completely separate namespace (for example, `demo-run-002`) so you can compare runs side-by-side.
 
 **Latency measurements**
-- The scenario now captures `podLatency`, `podLatencyQuantiles`, and `podLatencyRange` using kube-burner’s built-in defaults (quantiles at 0.5/0.95/0.99 and standard bucket ranges).
+- The scenario now captures `podLatency` using kube-burner’s built-in measurement; newer kube-burner binaries can add quantiles/ range metrics if desired.
 - Inspect the generated `measurements.json` in kube-burner’s output directory after a run, or forward Prometheus to correlate these stats with live metrics.
 
 ### Running multiple Prometheus UIs
