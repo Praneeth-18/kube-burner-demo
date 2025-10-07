@@ -94,6 +94,7 @@ prometheusImage: prom/prometheus:v2.54.0
   ./scripts/sync-load-env.py
   ```
 - Re-run the sync command whenever you change `.env`; values left unset fall back to whatever is already in the YAML.
+- Use `BACKEND_SCALE_REPLICAS` and `LOAD_SCALE_DELAY` in `.env` if you want the automatic backend scale-up or load tear-down timing to change.
 - Use `BACKEND_SCALE_REPLICAS` in `.env` if you want the automatic scale-up patch to target a different replica count.
 - This keeps newcomers out of raw YAML while still letting you version different load profiles alongside the repo.
 
@@ -148,6 +149,7 @@ Remember to change the `uuid` before each run; the namespace will be `${namespac
 ### Key knobs worth adjusting:
 - **backendName/backendServiceName/backendReplicas**: override the backend Deployment & Service names and replica count without touching the templates.
 - **backendScaleReplicas**: target replica count applied by the kube-burner patch job once the load pause window elapses.
+- **loadScaleDelay**: how long kube-burner waits after scaling the backend before it tears down the load generator deployment (default 30 s).
 - **frontendName/frontendServiceName/frontendReplicas**: same for the frontend.
 - **loadGeneratorName/loadGeneratorServiceName/loadGeneratorReplicas**: control the load generator resources and how many workers run in parallel.
 - **frontendPublicUrl**: injected into the frontend config so the browser hits the right backend endpoint.
@@ -175,6 +177,7 @@ kube-burner workflow:
 3. Pause for the baseline window (`baselinePause`).
 4. Deploy the load generator; it drives traffic until `loadPause` elapses (or `RUN_DURATION_SECONDS` is hit). Afterwards the pods stay up so dashboards remain accessible until you scale them down.
 5. After the `loadPause` window, kube-burner runs a patch job that scales the backend deployment to `backendScaleReplicas` (default 2) so you can demonstrate recovery under load—tune `loadPause` in `.env` if you want that scale-up to happen sooner or later.
+6. Finally, a delete job waits `loadScaleDelay` (default 30 s) and removes the load generator deployment so traffic winds down automatically.
 
 ---
 ## 7. Observe via port-forward

@@ -29,6 +29,7 @@
 {{- $prometheusServiceName := or (index $meta "prometheusServiceName") "demo-prometheus" -}}
 {{- $prometheusImage := or (index $meta "prometheusImage") "prom/prometheus:v2.54.0" -}}
 {{- $backendScaleReplicas := or (index $meta "backendScaleReplicas") 2 -}}
+{{- $loadScaleDelay := or (index $meta "loadScaleDelay") "30s" -}}
 
 global:
   gc: false
@@ -203,7 +204,7 @@ jobs:
     cleanup: false
     namespacedIterations: false
     namespace: {{ $namespace }}
-    jobPause: 0s
+    jobPause: {{ $loadScaleDelay }}
     objects:
       - objectTemplate: workloads/objectTemplates/backend-scale-patch.yml
         apiVersion: apps/v1
@@ -213,4 +214,21 @@ jobs:
           app: {{ $backendName }}
         inputVars:
           backendScaleReplicas: {{ $backendScaleReplicas }}
+
+  - name: stop-load-generator
+    jobType: delete
+    jobIterations: 1
+    preLoadPeriod: 0s
+    qps: 1
+    burst: 1
+    waitWhenFinished: true
+    cleanup: false
+    namespacedIterations: false
+    namespace: {{ $namespace }}
+    jobPause: 0s
+    objects:
+      - kind: Deployment
+        apiVersion: apps/v1
+        labelSelector:
+          kube-burner-job: start-load-generator
 {{- end }}

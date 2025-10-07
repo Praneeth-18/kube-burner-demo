@@ -35,6 +35,10 @@ ENV_MAPPING = {
         "yaml_key": "backendScaleReplicas",
         "formatter": "int",
     },
+    "LOAD_SCALE_DELAY": {
+        "yaml_key": "loadScaleDelay",
+        "formatter": "raw",
+    },
     "LOAD_BASE_RPS": {
         "yaml_key": "loadGeneratorBaseRps",
         "formatter": "quoted",

@@ -12,6 +12,8 @@ frontendReplicas: 1
 loadGeneratorName: demo-load
 loadGeneratorServiceName: demo-load
 loadGeneratorReplicas: 1
+# loadScaleDelay controls how long kube-burner waits after backend scaling before deleting the load generator deployment.
+loadScaleDelay: 30s
 backendImage: kind.local/demo-app-backend:latest
 frontendImage: kind.local/demo-app-frontend:latest
 loadGeneratorImage: kind.local/demo-app-load:latest
