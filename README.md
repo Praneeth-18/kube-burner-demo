@@ -282,4 +282,52 @@ Before the next run, update the `uuid` in `demo-user-data.yaml` (and copy/sync a
 - **No backend scale-up**: verify `BACKEND_SCALE_REPLICAS` is greater than the initial replica count and that `.env` changes were synced.
 - **Metrics missing**: confirm the port-forward sessions are active, and that Prometheus is scraping the services (labels set in the templates).
 
+---
+
+# Here is the full walkthrough with the default settings so a newcomer can follow the entire lifecycle and know exactly what happens when.
+
+### Initial setup
+
+You start with `.env` values synced into `tmp/demo-user-data.yaml`. Key defaults:
+*   `baselinePause=20s`
+*   `loadPause=30s`
+*   `LOAD_RUN_DURATION_SECONDS=90`
+*   `BACKEND_SCALE_REPLICAS=2`
+*   `LOAD_SCALE_DELAY=30s`
+
+You launch the scenario with:
+```bash
+./bin/kube-burner init -c config/demo-run.yml --user-data tmp/demo-user-data.yaml --uuid demo-run-001
+```
+
+### Phase 1 – Baseline stack (0–20 s)
+
+1.  `kube-burner` pre-pulls images so workloads start quickly.
+2.  It creates the backend API (1 replica), the static frontend, and Prometheus in namespace `app-demo-demo-run-001`.
+3.  After the pods become ready, `kube-burner` waits for `baselinePause` (20 s). This quiet window lets you click through the frontend and confirm everything is healthy before load starts.
+
+### Phase 2 – Load ramp (20–50 s)
+
+4.  The `start-load-generator` job creates the load deployment (1 replica). Once the pod is ready, `kube-burner` waits for `loadPause` (30 s).
+5.  During this 30 s window, the Python client runs: it ramps exponentially with `BASE_RPS=10`, `RAMP_FACTOR=5`, `RAMP_INTERVAL_SECONDS=5`, and keeps firing requests for `RUN_DURATION_SECONDS=90`. Because it’s a Deployment, Kubernetes will restart the pod if it exits early; the delete job later ensures it stops for good.
+
+### Phase 3 – Automatic backend recovery (≈50 s)
+
+6.  Immediately after `loadPause` expires, `kube-burner` triggers the `scale-backend patch` job. This sets the backend Deployment to `BACKEND_SCALE_REPLICAS` (2 replicas by default). Within a few seconds you’ll see a second backend pod spin up and request load should recover.
+
+### Phase 4 – Observe the scaled state (50–80 s)
+
+7.  `kube-burner` pauses again for `LOAD_SCALE_DELAY` (30 s). This gives you time to watch Prometheus charts and confirm the new backend capacity is handling the traffic.
+
+### Phase 5 – Tear down the load (≈80 s)
+
+8.  After that 30 s observation window, the `stop-load-generator` job runs with `jobType: delete`. It looks up resources labeled as part of the load job (`kube-burner-job=start-load-generator`) and deletes the deployment. With no controller keeping it alive, the load generator pods vanish and traffic drops to zero.
+
+### End state
+
+9.  `kube-burner` exits cleanly. The namespace still contains the frontend, scaled backend, and Prometheus; the load deployment is gone.
+10. You can continue to observe metrics or recycle the namespace. For the next demo, adjust `.env`, re-run `./scripts/sync-load-env.py`, pick a fresh `uuid`, and repeat.
+
+This flow—quiet baseline, controlled spike, automated recovery, and deliberate teardown—gives a clear, repeatable story you can show to anyone learning `kube-burner` or cluster performance tuning.
+
 
