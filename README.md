@@ -1,6 +1,6 @@
 # kube-burner Orchestration
 
-This guide walks through the demo end to end: building the sample application, deploying it with kube-burner, exercising it with an exponential load generator, and observing metrics via direct port-forwards. 
+This guide walks through the demo end to end: building the sample application, deploying it with kube-burner, exercising it with an exponential load generator, and observing metrics via direct port-forwards. The demo highlights how a cluster behaves under load, how it recovers when scaled, and how to capture the metrics that proves it.
 
 ---
 ## 1. Prerequisites
