@@ -4,12 +4,11 @@ This guide walks through the demo end to end: building the sample application, d
 
 ---
 ## 1. Prerequisites
-
-- Docker Desktop (or Docker Engine) with permission to share this repository directory.
-- `kubectl` and either **kind** (recommended) or another Kubernetes cluster.
-- `curl`, `tar`, and `bash` for pulling binaries.
-- Clone the repo:
-  ```bash
+- Docker Desktop (or Docker Engine) with access to this repo directory.
+- `kubectl` and either **kind** (recommended) or any Kubernetes cluster.
+- `curl`, `tar`, and `bash` to download kube-burner.
+- Clone the repository:
+   ```bash
   git clone https://github.com/Praneeth-18/kube-burner-demo.git
   cd kube-burner-demo
   ```
@@ -54,38 +53,7 @@ Simply run "make build" in the root of the cloned [kube-burner](https://github.c
 ---
 ## 5. Configure the run
 
-Edit `tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Every field can be tweaked so you can dial in lighter or heavier runs without touching the config. Example:
-
-```yaml
-uuid: demo-run-001
-namespacePrefix: app-demo
-appName: movie-night
-backendName: demo-backend
-backendServiceName: demo-backend
-backendReplicas: 1
-frontendName: demo-frontend
-frontendServiceName: demo-frontend
-frontendReplicas: 1
-loadGeneratorName: demo-load
-loadGeneratorServiceName: demo-load
-loadGeneratorReplicas: 1
-backendImage: kind.local/demo-app-backend:latest
-frontendImage: kind.local/demo-app-frontend:latest
-loadGeneratorImage: kind.local/demo-app-load:latest
-frontendPublicUrl: http://localhost:8081
-loadGeneratorActions: book_ticket,cancel_ticket,give_feedback
-enableLoad: true
-baselinePause: 90s
-loadPause: 180s
-loadGeneratorBaseRps: "4"
-loadGeneratorRampFactor: "2"
-loadGeneratorRampIntervalSeconds: "30"
-loadGeneratorRunDurationSeconds: "240"
-prometheusName: demo-prometheus
-prometheusServiceName: demo-prometheus
-prometheusImage: prom/prometheus:v2.54.0
-```
-
+Edit `tmp/demo-user-data.yaml`—this file controls names, image tags, replica counts, load profile, and the UUID. Every field can be tweaked so you can dial in lighter or heavier runs without touching the config. 
 **Prefer `.env` for load tweaks**
 - Copy `.env.example` to `.env`, edit the variables you care about (baseline/load pauses, replicas, ramp knobs), then sync them into the YAML before running:
   ```bash
@@ -96,7 +64,7 @@ prometheusImage: prom/prometheus:v2.54.0
 - Re-run the sync command whenever you change `.env`; values left unset fall back to whatever is already in the YAML.
 - Use `BACKEND_SCALE_REPLICAS` and `LOAD_SCALE_DELAY` in `.env` if you want the automatic backend scale-up or load tear-down timing to change.
 - Use `BACKEND_SCALE_REPLICAS` in `.env` if you want the automatic scale-up patch to target a different replica count.
-- This keeps newcomers out of raw YAML while still letting you version different load profiles alongside the repo.
+- If you prefer, edit `tmp/demo-user-data.yaml` directly—the `.env` workflow is just a friendlier wrapper which keeps newcomers out of raw YAML while still letting you version different load profiles alongside the repo.
 
 ---
 
@@ -134,7 +102,25 @@ prometheusServiceName: demo-prometheus
 prometheusImage: prom/prometheus:v2.54.0
 ```
 
+Key knobs exposed through `.env` and the metadata file:
+- `uuid`: differentiates each run and namespace.
+- `backendScaleReplicas`: backend replica count after the automated scale-up.
+- `baselinePause` / `loadPause`: waiting periods before and during the load job.
+- `loadGenerator*` variables: exponential ramp profile and runtime (defaults give a 90 s burst).
+- `loadScaleDelay`: how long kube-burner waits after scaling the backend before removing the load generator deployment.
+- Image tags, service names, and Prometheus configuration.
+
+
+
+
 Remember to change the `uuid` before each run; the namespace will be `${namespacePrefix}-${uuid}` (e.g. `app-demo-demo-run-001`).
+
+
+
+
+
+
+
 
 ### Ramp pattern (You can tweak these as per your desired load numers in `tmp/demo-user-data.yaml`
 - Starts at `BASE_RPS` requests per second.
@@ -146,18 +132,7 @@ Remember to change the `uuid` before each run; the namespace will be `${namespac
     - 135 seconds: ~4.9 rps (2 × 1.35^3)
     - 180 seconds: ~6.6 rps (2 × 1.35^4)
 
-### Key knobs worth adjusting:
-- **backendName/backendServiceName/backendReplicas**: override the backend Deployment & Service names and replica count without touching the templates.
-- **backendScaleReplicas**: target replica count applied by the kube-burner patch job once the load pause window elapses.
-- **loadScaleDelay**: how long kube-burner waits after scaling the backend before it tears down the load generator deployment (default 30 s).
-- **frontendName/frontendServiceName/frontendReplicas**: same for the frontend.
-- **loadGeneratorName/loadGeneratorServiceName/loadGeneratorReplicas**: control the load generator resources and how many workers run in parallel.
-- **frontendPublicUrl**: injected into the frontend config so the browser hits the right backend endpoint.
-- **loadGeneratorActions**: comma-separated list of actions the Python client will randomly execute.
-- **enableLoad**: set to `false` if you want to deploy only the app stack (useful for manual demos).
-- **baselinePause/loadPause**: how long kube-burner waits between jobs—baseline lets you click manually; load keeps the generator running before you stop it.
-- **loadGeneratorBaseRps/RampFactor/RampInterval/RunDuration**: tune the exponential request curve. These are the levers for targeting different load levels or demonstrating a breaking point.
-- **prometheusName/prometheusServiceName/prometheusImage**: tweak the in-cluster Prometheus deployment if you want a different name or image tag.
+
 
 > Tip: keep multiple copies of the file (for example `demo-user-data-light.yaml`, `demo-user-data-stress.yaml`) and copy the one you want to `tmp/demo-user-data.yaml` before each run.
 
@@ -171,18 +146,20 @@ Remember to change the `uuid` before each run; the namespace will be `${namespac
   --uuid demo-run-001
 ```
 
-kube-burner workflow:
-1. Pre-pull images via a temporary DaemonSet.
-2. Deploy backend and frontend.
-3. Pause for the baseline window (`baselinePause`).
-4. Deploy the load generator; it drives traffic until `loadPause` elapses (or `RUN_DURATION_SECONDS` is hit). Afterwards the pods stay up so dashboards remain accessible until you scale them down.
-5. After the `loadPause` window, kube-burner runs a patch job that scales the backend deployment to `backendScaleReplicas` (default 2) so you can demonstrate recovery under load—tune `loadPause` in `.env` if you want that scale-up to happen sooner or later.
-6. Finally, a delete job waits `loadScaleDelay` (default 30 s) and removes the load generator deployment so traffic winds down automatically.
+What happens during the run:
+1. kube-burner pre-pulls images via a DaemonSet for faster pod start-up.
+2. The backend, frontend, and Prometheus deploy; `baselinePause` gives you time to poke around.
+3. The load generator deployment starts and runs for `loadPause` + `RUN_DURATION_SECONDS`.
+4. After `loadPause`, kube-burner patches the backend to `backendScaleReplicas` (default 2) so you can watch recovery.
+5. `loadScaleDelay` seconds later, kube-burner deletes the load generator deployment, letting traffic wind down automatically.
+
+Adjust the delays or replica targets in `.env` to explore different stories (longer spikes, later recovery, etc.).
 
 ---
-## 7. Observe via port-forward
+## 7. Observe the system via port-forward 
 
-While the namespace exists:
+While the namespace exists (`app-demo-<uuid>`):
+
 
 - **Frontend UI**
   ```bash
@@ -219,6 +196,9 @@ These endpoints expose everything you need: HTTP server metrics, interaction cou
 - `histogram_quantile(0.99, sum(rate(lg_request_duration_seconds_bucket[2m])) by (le))`
 - `sum(rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))`
 - `lg_current_rps`
+- `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace="app-demo-demo-run-001"}[5m])) by (le))`
+- `histogram_quantile(0.95, sum(rate(lg_request_duration_seconds_bucket{namespace="app-demo-demo-run-001"}[5m])) by (le))`
+- `sum(increase(kubelet_pod_worker_duration_seconds_count{namespace="app-demo-demo-run-001"}[10m]))`
 
 Latency-focused queries (replace `<uuid>` with your run, for example `demo-run-001`):
 - `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace="app-demo-<uuid>"}[5m])) by (le))` – backend request latency (p95).
@@ -227,34 +207,8 @@ Latency-focused queries (replace `<uuid>` with your run, for example `demo-run-0
 
 These show throughput, backend latency percentiles, and load-generator behavior.
 
-When you're done showing the spike, scale the generator back to zero instead of deleting everything:
-
-```bash
-kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
-```
-
-You can scale it back up later if you want to restart the load without rerunning kube-burner.
 
 ---
-
-### Find the breaking point
-
-1. Start with the default profile (1 backend replica, moderate RPS) and capture the baseline in Prometheus.
-2. Bump the load knobs in `tmp/demo-user-data.yaml`—for example:
-   - `loadGeneratorBaseRps: "8"`
-   - `loadGeneratorRampFactor: "2.5"`
-   - `loadGeneratorReplicas: 2`
-   - shorter `loadGeneratorRampIntervalSeconds`
-3. Rerun kube-burner with a new UUID and watch for latency spikes or `http_5xx` errors.
-4. Recover by scaling the backend (the patch job will automatically raise it to `backendScaleReplicas`, but you can still experiment manually):
-
-   ```bash
-   kubectl scale deployment demo-backend \
-     -n app-demo-demo-run-XXX \
-     --replicas=3
-   ```
-
-   Watch Prometheus as latency drops back to normal.
 
 ### Why kube-burner at all?
 
@@ -269,57 +223,42 @@ Without kube-burner you’d have to kubectl apply a bunch of manifests, sync the
 
 ---
 
-### Demo flow in one run for tweaking the load live:
+### Some commands to play with:
 
-1. Run kube-burner with the default profile (one backend replica, moderate RPS) to collect a baseline.
-2. While the load job is running (or immediately after kube-burner exits), change the load on the fly:
-   ```bash
-   kubectl edit deployment demo-load -n app-demo-demo-run-001
-   ```
-   Adjust the environment variables (RPS, ramp factor, etc.) or scale replicas as needed.
-   Prometheus keeps the timeline, so you will see the spike on the same dashboard.
-
-   After you execute the previous command, in the editor, you can modify and play with these values for different load profiles:
-   ```bash
-   - name: BASE_RPS
-     value: "4"
-   - name: RAMP_FACTOR
-     value: "2"
-   - name: RAMP_INTERVAL_SECONDS
-     value: "30"
-   - name: RUN_DURATION_SECONDS
-     value: "240"
-   ```
-4. Recover by scaling the backend: 
+1. Recover by scaling the backend: 
    ```bash
    kubectl scale deployment demo-backend -n app-demo-demo-run-001 --replicas=3
    ```
-5. When finished, stop the load generator but leave the app running: 
+2. When finished, stop the load generator but leave the app running: 
    ```bash
-  kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
+    kubectl scale deployment demo-load -n app-demo-demo-run-001 --replicas=0
+    ```
+
+3. To see the pods live:
+```bash
+  kubectl get pods -n app-demo-demo-run-001
 ```
+
 
 You only need to rerun kube-burner with a new UUID when you want a completely separate namespace (for example, `demo-run-002`) so you can compare runs side-by-side.
 
-**Latency measurements**
-- The scenario now captures `podLatency` using kube-burner’s built-in measurement; newer kube-burner binaries can add quantiles/ range metrics if desired.
-- Inspect the generated `measurements.json` in kube-burner’s output directory after a run, or forward Prometheus to correlate these stats with live metrics.
 
-### Running multiple Prometheus UIs
-
-- **Different local ports**
-  ```bash
-  kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-001 9090:9090
-  kubectl port-forward svc/demo-prometheus -n app-demo-demo-run-002 9091:9090
-  ```
-  Visit `http://localhost:9090` for the baseline and `http://localhost:9091` for the stress run.
-
-- **One at a time**
-  Stop the first port-forward (`Ctrl+C`) and start a new one that points at the next namespace. Use the same local port if you only need one dashboard at a time.
 
 
 ---
-## 8. Cleanup
+
+## 8. Experiment
+
+- Duplicate `.env` to create “light” and “stress” profiles (e.g., raise `LOAD_BASE_RPS`, `LOAD_RAMP_FACTOR`, or shorten `LOAD_RAMP_INTERVAL_SECONDS`).
+
+- Bump `backendScaleReplicas` to see how many pods are needed to recover.
+
+- Increase `loadScaleDelay` to keep the load running longer before the deployment is removed.
+
+- Rerun with a new `uuid` so you can compare namespaces side by side (`app-demo-demo-run-001`, `app-demo-demo-run-002`, …).
+
+--- 
+## 9. Cleanup
 
 ```bash
 ./bin/kube-burner destroy --uuid demo-run-001
@@ -332,11 +271,15 @@ Optional:
 kind delete cluster --name kube-burner-demo
 ```
 
-Before the next run, update the `uuid` in `demo-user-data.yaml`.
+Before the next run, update the `uuid` in `demo-user-data.yaml` (and copy/sync a new `.env` profile if desired).
 
 ---
-## 9. Troubleshooting highlights
 
-- **Pods cannot pull images**: ensure you loaded the images into kind or pushed them to a reachable registry.
-- **Load ends too soon**: increase `loadPause` and/or `loadGeneratorRunDurationSeconds`.
-- **UUID conflict**: destroy the old run or pick a fresh UUID.
+## 10. Troubleshooting
+- **Image pull errors**: ensure the images were loaded into kind or pushed to a reachable registry.
+- **Load looks too short**: increase `loadPause`, `loadScaleDelay`, or `LOAD_RUN_DURATION_SECONDS`.
+- **UUID already exists**: run `./bin/kube-burner destroy --uuid <old>` or choose a fresh UUID.
+- **No backend scale-up**: verify `BACKEND_SCALE_REPLICAS` is greater than the initial replica count and that `.env` changes were synced.
+- **Metrics missing**: confirm the port-forward sessions are active, and that Prometheus is scraping the services (labels set in the templates).
+
+
