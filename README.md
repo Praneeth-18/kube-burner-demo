@@ -9,8 +9,8 @@ This guide walks through the demo end to end: building the sample application, d
 - `curl`, `tar`, and `bash` to download kube-burner.
 - Clone the repository:
    ```bash
-  git clone https://github.com/Praneeth-18/kube-burner-demo.git
-  cd kube-burner-demo
+  git clone https://github.com/Praneeth-18/kube-burner-demo-for-software-engineers.git
+  cd kube-burner-demo-for-software-engineers
   ```
 
 ---
