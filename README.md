@@ -200,10 +200,9 @@ These endpoints expose everything you need: HTTP server metrics, interaction cou
 - `histogram_quantile(0.95, sum(rate(lg_request_duration_seconds_bucket{namespace="app-demo-demo-run-001"}[5m])) by (le))`
 - `sum(increase(kubelet_pod_worker_duration_seconds_count{namespace="app-demo-demo-run-001"}[10m]))`
 
-Latency-focused queries (replace `<uuid>` with your run, for example `demo-run-001`):
-- `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace="app-demo-<uuid>"}[5m])) by (le))` – backend request latency (p95).
-- `histogram_quantile(0.95, sum(rate(lg_request_duration_seconds_bucket{namespace="app-demo-<uuid>"}[5m])) by (le))` – load generator request latency (p95).
-- `sum(increase(kubelet_pod_worker_duration_seconds_count{namespace="app-demo-<uuid>"}[10m]))` – kubelet pod-startup counts/latency.
+Latency-focused queries:
+- `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="backend"}[5m])) by (le))` – backend request latency (p95).
+- `histogram_quantile(0.95, sum(rate(lg_request_duration_seconds_bucket{job="load-generator"}[5m])) by (le))` – load generator request latency (p95).
 
 These show throughput, backend latency percentiles, and load-generator behavior.
 
